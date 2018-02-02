@@ -19,5 +19,8 @@
   "homepage": "https://github.com/eitanre2/Pendo#readme",
   "devDependencies": {
     "mocha": "^5.0.0"
+  },
+  "dependencies": {
+    "express": "^4.16.2"
   }
 }
