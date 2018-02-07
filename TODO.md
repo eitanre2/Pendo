@@ -16,9 +16,11 @@ Put here thoughts, Ideas, Corners etc..
 - defined error codes in controller.
 - validate request json (validate-my-schema)
 - make sure rethinkDb client keep connection, otherwise create connection every request
+  (will damage the idea behind the changes() in rethinkDB)
 - use async, parallel instead of canonial calls.. (especially in tests)
 
 
 # Edge Corner
 - timing - fast user can vote twice (between the checks)
+- removing too many posts may empty the topList
 

@@ -12,7 +12,8 @@ r.init({
 },
     [
         {
-            name: 'posts'
+            name: 'posts',
+            indexes: ["score", "creation"]
         },
         {
             name: 'userVotes',
