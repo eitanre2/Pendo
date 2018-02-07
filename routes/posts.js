@@ -3,8 +3,15 @@
 var express = require('express');
 var router = express.Router();
 
-var postsCtl = require('../controllers/posts_dummy');
+var posts_dummy = require('../controllers/posts_dummy');
+var postsCtl = new posts_dummy();
+var config = {
+  topPost: 5
+};
 
+function setconfig(configObj) {
+  config = configObj || config;
+}
 
 // Create new post
 router.put('/', function (req, res) {
@@ -12,11 +19,11 @@ router.put('/', function (req, res) {
     title: req.body.title,
     body: req.body.body
   };
-  var postId = postsCtl.createPost(req.identity.userId, post);
-
-  res.json({
-    result: postId >= 0,
-    postId: postId
+  postsCtl.createPost(req.identity.userId, post, function (err, postId) {
+    res.json({
+      result: postId >= 0,
+      postId: postId
+    });
   });
 });
 
@@ -28,36 +35,41 @@ router.post('/:postId', function (req, res) {
     title: req.body.title,
     body: req.body.body
   };
-  var result = postsCtl.updatePost(req.identity.userId, postId, post);
-  if (result) {
-    res.json({
-      result: true
-    });
-  } else {
-    res.status(405).json({
-      result: false,
-      message: "Failed to update post"
-    });
-  }
+  postsCtl.updatePost(req.identity.userId, postId, post, function (err, result) {
+    if (result) {
+      res.json({
+        result: true
+      });
+    } else {
+      res.status(405).json({
+        result: false,
+        message: "Failed to update post"
+      });
+    }
+  });
+
 });
 
 //get "Top Posts"
 router.get('/top', function (req, res) {
-  var topPosts = postsCtl.getTopPosts();
-  res.json({
-    topPosts: topPosts,
-    result: topPosts && topPosts.length > 0
+  postsCtl.getTopPosts(function (err, topPosts) {
+    res.json({
+      topPosts: topPosts,
+      result: topPosts && topPosts.length > 0
+    });
   });
+
 });
 
 //get a post
 router.get('/:postId', function (req, res) {
   var postId = req.params.postId;
-  var post = postsCtl.getPost(postId);
-  res.json({
-    result: post !== undefined,
-    postId: postId,
-    post: post
+  postsCtl.getPost(postId, function (err, post) {
+    res.json({
+      result: post !== undefined,
+      postId: postId,
+      post: post
+    });
   });
 });
 
@@ -65,10 +77,10 @@ router.get('/:postId', function (req, res) {
 router.get('/:postId/up', function (req, res) {
   var userId = req.identity.userId;
   var postId = req.params.postId;
-  var result = postsCtl.votePost(userId, postId, 1);
-
-  res.json({
-    result: result
+  postsCtl.votePost(userId, postId, 1, function (err, result) {
+    res.json({
+      result: result
+    });
   });
 });
 
@@ -76,12 +88,11 @@ router.get('/:postId/up', function (req, res) {
 router.get('/:postId/down', function (req, res) {
   var userId = req.identity.userId;
   var postId = req.params.postId;
-  var result = postsCtl.votePost(userId, postId, -1);
-
-  res.json({
-    result: result
+  postsCtl.votePost(userId, postId, -1, function (err, result) {
+    res.json({
+      result: result
+    });
   });
-
 });
 
 module.exports = {
