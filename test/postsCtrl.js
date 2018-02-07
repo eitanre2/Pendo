@@ -288,14 +288,14 @@ var impls = [
     {
         name: "DummyPosts",
         creator: function () {
-            var m = require('../controllers/posts_dummy');
+            var m = require('../models/posts_dummy');
             return new m();
         }
     },
     {
         name: "rethinkDB Posts",
         creator: function () {
-            var m = require('../controllers/posts');
+            var m = require('../models/posts');
             return new m();
         }
     }

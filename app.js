@@ -32,7 +32,7 @@ app.use(function (req, res, next) {
 
 
 app.use(bodyParser.json());
-var posts = require('./routes/posts');
+var posts = require('./controllers/posts');
 posts.setconfig(config.posts);
 
 // Routers
