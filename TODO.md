@@ -15,6 +15,8 @@ Put here thoughts, Ideas, Corners etc..
 - create Classes for Post, ScoredPost.
 - defined error codes in controller.
 - validate request json (validate-my-schema)
+- make sure rethinkDb client keep connection, otherwise create connection every request
+- use async, parallel instead of canonial calls.. (especially in tests)
 
 
 # Edge Corner
