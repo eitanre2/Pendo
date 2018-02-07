@@ -11,7 +11,8 @@ var r = require('rethinkdb');
 * @typedef ScoredPost
 * @property {Post} post - post
 * @property {Post} creation - post creation time (epoch)
-* @property {Number} score - post's current score
+* @property {Number} upVote - post's current downVote counter
+* @property {Number} downVote - post's current downVote counter
 */
 
 /**
@@ -61,7 +62,7 @@ Posts.prototype.init = function (cb) {
 }
 
 function calcScore(post) {
-    return post.score;
+    return post.upVote - post.downVote;
 }
 
 Posts.prototype.handlePostUpdate = function (postChange, isRemoved) {
@@ -131,7 +132,8 @@ Posts.prototype.createPost = function (userId, newPost, cb) {
     var post = {
         userId: userId,
         post: newPost,
-        score: 0,
+        downVote: 0,
+        upVote: 0,
         creation: Date.now()
     };
     newPost.creation = post.creation;
@@ -186,7 +188,8 @@ Posts.prototype.getPost = function (postId, cb) {
             } else {
                 var scoredPost = {
                     post: result.post,
-                    score: result.score,
+                    upVote: result.upVote,
+                    downVote: result.downVote,
                     creation: result.creation
                 }
                 cb(undefined, scoredPost);
@@ -198,41 +201,58 @@ Posts.prototype.getPost = function (postId, cb) {
  * Vote to post, only once per user.
  * @param {String} userId - user Id
  * @param {String} postId - post Id
- * @param {Number} score - score to be added to post.
- * can be negative
+ * @param {Boolean} vote - true measn upVote
  * @param {function} cb - callback function. function(err, result:boolean).
  * @returns {undefined}
  */
-Posts.prototype.votePost = function (userId, postId, score, cb) {
+Posts.prototype.votePost = function (userId, postId, vote, cb) {
     var posts = this;
-    var vote = {
+    var voteObj = {
         user2post: userId + "_2_" + postId,
-        score: score
+        vote: vote
     };
     r.db(this.dbName)
         .table('userVotes')
-        .insert([vote], { conflict: "error" })
+        .insert([voteObj], { conflict: "error" })
         .run(this.connection, function (err, result) {
             if (err) {
                 cb(err);
             } else if (result.inserted !== 1) {
                 cb(new Error("Couldn't vote on post"));
             } else {
-                r.db(posts.dbName)
-                    .table('posts')
-                    .get(postId)
-                    .update({
-                        score: r.row("score").add(score).default(0)
-                    })
-                    .run(posts.connection, function (err, result) {
-                        if (err) {
-                            cb(err);
-                        } else if (result.replaced !== 1) {
-                            cb(new Error("Couldn't update post's score in db"));
-                        } else {
-                            cb(undefined, true);
-                        }
-                    });
+                if (vote) {
+                    r.db(posts.dbName)
+                        .table('posts')
+                        .get(postId)
+                        .update({
+                            upVote: r.row("upVote").add(1).default(0)
+                        })
+                        .run(posts.connection, function (err, result) {
+                            if (err) {
+                                cb(err);
+                            } else if (result.replaced !== 1) {
+                                cb(new Error("Couldn't update post's upVote in db"));
+                            } else {
+                                cb(undefined, true);
+                            }
+                        });
+                } else {
+                    r.db(posts.dbName)
+                        .table('posts')
+                        .get(postId)
+                        .update({
+                            "downVote": r.row("downVote").add(1).default(0)
+                        })
+                        .run(posts.connection, function (err, result) {
+                            if (err) {
+                                cb(err);
+                            } else if (result.replaced !== 1) {
+                                cb(new Error("Couldn't update post's downVote in db"));
+                            } else {
+                                cb(undefined, true);
+                            }
+                        });
+                }
             }
         });
 }
@@ -249,32 +269,6 @@ Posts.prototype.getTopPosts = function (cb) {
 /**
  * Gets list of last created "Top Posts", order by DESC
  * @param {Number?} total - Number of top Posts to return (Default 5)
- * @param {function} cb - callback function. function(err, posts:Array<ScoredPost>).
- * @returns {undefined}
- */
-Posts.prototype.getCurrentTopPosts = function (cb) {
-    var posts = this;
-    r.db(this.dbName)
-        .table('posts')
-        .orderBy({ index: r.desc('score') })
-        .limit(posts.topPostsLimit)
-        .run(posts.connection, function (err, cursor) {
-            if (err) {
-                cb(err);
-            } else if (!posts.connection) {
-                //ignore event when closed.
-            } else {
-                var scoredPosts = [];
-                cursor.toArray(function (error, results) {
-                    cb(undefined, results);
-                });
-            }
-        });
-}
-
-/**
- * Gets list of last created "Top Posts", order by DESC
- * @param {Number?} total - Number of top Posts to return (Default 5)
  * @param {function} cb - callback function. function(err, change, isRemoved).
  * @returns {undefined}
  */
@@ -282,7 +276,6 @@ Posts.prototype.listen2TopPosts = function (total, cb) {
     var posts = this;
     r.db(this.dbName)
         .table('posts')
-        .orderBy({ index: r.desc('score') })
         .changes()
         .run(posts.connection, function (err, cursor) {
             if (err) {

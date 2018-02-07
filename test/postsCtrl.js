@@ -140,7 +140,7 @@ function DeclareTests(name, postsCtrlCreator) {
                 });
             };
             test.run = function (prepare, runDone) {
-                test.ctrl.votePost(test.userId, prepare.postId, 1, function (err, result) {
+                test.ctrl.votePost(test.userId, prepare.postId, true, function (err, result) {
                     test.prepare.votes += result ? 1 : 0;
                     //get the post again (to have its score)
                     if (result) {
@@ -156,7 +156,7 @@ function DeclareTests(name, postsCtrlCreator) {
 
             test.verify = function (expected) {
                 assert.equal(test.prepare.votes, 1);
-                //assert.equal(test.prepare.votedPost.score, 1);
+                assert.equal(test.prepare.votedPost.upVote, 1);
                 done();
             };
 
@@ -183,7 +183,7 @@ function DeclareTests(name, postsCtrlCreator) {
             };
             test.run = function (prepare, runDone) {
                 var userId = test.currentTime;
-                test.ctrl.votePost(userId, test.prepare.postId, 1, function (err, result) {
+                test.ctrl.votePost(userId, test.prepare.postId, true, function (err, result) {
                     //counts the succefull votes
                     test.prepare.votes += result ? 1 : 0;
                     runDone();
@@ -217,7 +217,8 @@ function DeclareTests(name, postsCtrlCreator) {
                 //for the first 10 times - create posts
                 if (test.currentTime <= 10) {
                     var post = this.createPost("My post #" + test.currentTime, "My post body");
-                    post.score = 0;
+                    post.upVote = 0;
+                    post.downVote = 0;
                     prepare.posts.push(post);
                     test.ctrl.createPost(test.userId, post, function (err, newPostId) {
                         post.postId = newPostId;
@@ -226,10 +227,11 @@ function DeclareTests(name, postsCtrlCreator) {
                     //then - let 50 users to vote
                 } else if (10 < test.currentTime && test.currentTime <= 50) {
                     var userId = test.currentTime;
-                    var score = test.currentTime % 2 == 0 ? 3 : 4;
+                    var vote = test.currentTime % 2 == 0 || test.currentTime % 7;
                     var post = prepare.posts[userId % 10];
-                    post.score += score;
-                    test.ctrl.votePost(userId, post.postId, score, function (err, result) {
+                    post.upVote += vote ? 1 : 0;
+                    post.downVote += vote ? 0 : 1;
+                    test.ctrl.votePost(userId, post.postId, vote, function (err, result) {
                         runDone();
                     });
                     //finally, get top posts
@@ -240,21 +242,24 @@ function DeclareTests(name, postsCtrlCreator) {
                     });
                 }
             };
+            function calcScore(post) {
+                return post.upVote - post.downVote;
+            }
 
             test.verify = function (expected) {
                 assert.notEqual(test.prepare.topPosts, undefined);
                 assert.isTrue(test.prepare.topPosts.length <= test.ctrl.topPostsLimit);
                 //sort local array to compare with return array
                 test.prepare.posts.sort(function (a, b) {
-                    if (a.score > b.score) {
+                    if (calcScore(a) > calcScore(b)) {
                         return -1;
                     }
-                    if (a.score == b.score) {
+                    if (calcScore(a) == calcScore(b)) {
                         if (a.creation > b.creation) { return -1; }
                         if (a.creation === b.creation) { return 0; }
                         if (a.creation < b.creation) { return 1; }
                     }
-                    if (a.score < b.score) {
+                    if (calcScore(a) < calcScore(b)) {
                         return 1;
                     }
                 });
@@ -263,7 +268,7 @@ function DeclareTests(name, postsCtrlCreator) {
                 assert.equal(sortedPosts.length, test.prepare.topPosts.length);
                 for (var i = 0; i < sortedPosts.length; i++) {
                     assert.equal(sortedPosts[i].postId, test.prepare.topPosts[i].postId);
-                    assert.equal(sortedPosts[i].score, test.prepare.topPosts[i].score);
+                    assert.equal(calcScore(sortedPosts[i]), calcScore(test.prepare.topPosts[i]));
                     assert.equal(sortedPosts[i].creation, test.prepare.topPosts[i].creation);
                 }
                 //validate the posts are sorted and really the top.

@@ -77,7 +77,7 @@ router.get('/:postId', function (req, res) {
 router.get('/:postId/up', function (req, res) {
   var userId = req.identity.userId;
   var postId = req.params.postId;
-  postsCtl.votePost(userId, postId, 1, function (err, result) {
+  postsCtl.votePost(userId, postId, true, function (err, result) {
     res.json({
       result: result
     });
@@ -88,7 +88,7 @@ router.get('/:postId/up', function (req, res) {
 router.get('/:postId/down', function (req, res) {
   var userId = req.identity.userId;
   var postId = req.params.postId;
-  postsCtl.votePost(userId, postId, -1, function (err, result) {
+  postsCtl.votePost(userId, postId, false, function (err, result) {
     res.json({
       result: result
     });

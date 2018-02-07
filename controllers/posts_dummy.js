@@ -9,7 +9,8 @@
 /**
 * @typedef ScoredPost
 * @property {Post} post - post
-* @property {Number} score - post's current score
+* @property {Number} upVote - post's current downVote counter
+* @property {Number} downVote - post's current downVote counter
 */
 
 /**
@@ -70,7 +71,8 @@ PostsDummy.prototype.createPost = function (userId, newPost, cb) {
         userId: userId,
         postId: (this.postID++).toString(),
         post: newPost,
-        score: 0,
+        downVote: 0,
+        upVote: 0,
         creation: Date.now(),
         votes: []
     };
@@ -110,7 +112,8 @@ PostsDummy.prototype.getPost = function (postId, cb) {
         cb(new Error("Couldn't get post"));
     } else {
         var scoredPost = {
-            score: post.score,
+            upVote: post.upVote,
+            downVote: post.downVote,
             post: post.post
         };
         cb(undefined, scoredPost);
@@ -121,12 +124,11 @@ PostsDummy.prototype.getPost = function (postId, cb) {
  * Vote to post, only once per user.
  * @param {String} userId - user Id
  * @param {String} postId - post Id
- * @param {Number} score - score to be added to post.
- * can be negative
+ * @param {Boolean} vote - true measn upVote
  * @param {function} cb - callback function. function(err, result:boolean).
  * @returns {undefined}
  */
-PostsDummy.prototype.votePost = function (userId, postId, score, cb) {
+PostsDummy.prototype.votePost = function (userId, postId, vote, cb) {
     var post = this._getPost(postId);
     if (!post) {
         cb(new Error("Couldn't get post"), false);
@@ -142,11 +144,19 @@ PostsDummy.prototype.votePost = function (userId, postId, score, cb) {
         }
     }
 
-    post.votes.push({ userId: userId, score });
-    post.score += score;
+    post.votes.push({ userId: userId, vote });
+    if (vote){
+        post.upVote += 1;
+    } else {
+        post.downVote += 1;
+    }
+    
     cb(undefined, true);
 }
 
+function calcScore(post) {
+    return post.upVote - post.downVote;
+}
 /**
  * Gets list of last created "Top Posts", order by DESC
  * @param {function} cb - callback function. function(err, posts:Array<ScoredPost>).
@@ -160,15 +170,15 @@ PostsDummy.prototype.getTopPosts = function (cb) {
         if (a.creation < pastHotline) {
             return -1;
         }
-        if (a.score > b.score) {
+        if (calcScore(a) > calcScore(b)) {
             return -1;
         }
-        if (a.score == b.score) {
+        if (calcScore(a) == calcScore(b)) {
             if (a.creation > b.creation) { return -1; }
             if (a.creation === b.creation) { return 0; }
             if (a.creation < b.creation) { return 1; }
         }
-        if (a.score < b.score) {
+        if (calcScore(a) < calcScore(b)) {
             return 1;
         }
     });
