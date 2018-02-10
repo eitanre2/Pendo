@@ -55,6 +55,7 @@ router.post('/:postId', function (req, res) {
 //get "Top Posts"
 router.get('/top', function (req, res) {
   postsCtl.getTopPosts(function (err, topPosts) {
+    res.setHeader('Cache-Control', 'public, max-age=2');
     res.json({
       topPosts: topPosts,
       result: topPosts && topPosts.length > 0
