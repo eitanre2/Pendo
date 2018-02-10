@@ -1,6 +1,9 @@
 "use strict";
 var r = require('rethinkdb');
 
+const POST_TABLE = "posts"
+const USER_VOTES_TABLE = "userVotes"
+
 /**
  * @typedef Post
  * @property {string} title - post's title
@@ -170,7 +173,7 @@ Posts.prototype.createPost = function (userId, newPost, cb) {
     };
     newPost.creation = post.creation;
 
-    r.db(this.dbName).table('posts').insert([post]).run(this.connection, function (err, result) {
+    r.db(this.dbName).table(POST_TABLE).insert([post]).run(this.connection, function (err, result) {
         if (err) {
             cb(err);
         } else if (result.inserted !== 1 || result.generated_keys.length !== 1) {
@@ -190,7 +193,7 @@ Posts.prototype.createPost = function (userId, newPost, cb) {
  * @returns {Boolean} - update result
  */
 Posts.prototype.updatePost = function (userId, postId, updatedPost, cb) {
-    r.db(this.dbName).table('posts').get(postId).update({ post: updatedPost }).
+    r.db(this.dbName).table(POST_TABLE).get(postId).update({ post: updatedPost }).
         run(this.connection, function (err, result) {
             if (err) {
                 cb(err);
@@ -210,7 +213,7 @@ Posts.prototype.updatePost = function (userId, postId, updatedPost, cb) {
  */
 Posts.prototype.getPost = function (postId, cb) {
     r.db(this.dbName)
-        .table('posts')
+        .table(POST_TABLE)
         .get(postId)
         .run(this.connection, function (err, result) {
             if (err) {
@@ -244,7 +247,7 @@ Posts.prototype.votePost = function (userId, postId, vote, cb) {
         vote: vote
     };
     r.db(this.dbName)
-        .table('userVotes')
+        .table(USER_VOTES_TABLE)
         .insert([voteObj], { conflict: "error" })
         .run(this.connection, function (err, result) {
             if (err) {
@@ -253,7 +256,7 @@ Posts.prototype.votePost = function (userId, postId, vote, cb) {
                 cb(new Error("Couldn't vote on post"));
             } else {
                 r.db(posts.dbName)
-                    .table('posts')
+                    .table(POST_TABLE)
                     .get(postId)
                     .update({
                         upVote: r.row("upVote").add(vote ? 1 : 0).default(0),
@@ -292,7 +295,7 @@ Posts.prototype.listen2TopPosts = function (cb) {
     var pastHotline = Date.now() - this.hotPostsPeriod;
 
     r.db(this.dbName)
-        .table('posts')
+        .table(POST_TABLE)
         .changes({ includeTypes: true })//, includeInitial: true })
         .run(posts.connection, function (err, cursor) {
             if (err) {
@@ -321,7 +324,7 @@ Posts.prototype.currentTopPosts = function (cb) {
     var pastHotline = Date.now() - this.hotPostsPeriod;
 
     r.db(this.dbName)
-        .table('posts')
+        .table(POST_TABLE)
         .orderBy({ index: r.desc('score') })
         .filter(r.row("creation").gt(pastHotline))
         .limit(this.topPostsLimit)
