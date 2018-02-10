@@ -17,6 +17,10 @@ function setconfig(configObj) {
 
 // Create new post
 router.put('/', function (req, res) {
+  if (!req.body.title || !req.body.body) {
+    res.sendStatus(400);
+    return;
+  }
   var post = {
     title: req.body.title,
     body: req.body.body
@@ -31,6 +35,10 @@ router.put('/', function (req, res) {
 
 //update new post
 router.post('/:postId', function (req, res) {
+  if (!req.body.title || !req.body.body) {
+    res.sendStatus(400);
+    return;
+  }
   var userId = req.identity.userId;
   var postId = req.params.postId;
   var post = {
