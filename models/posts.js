@@ -252,39 +252,23 @@ Posts.prototype.votePost = function (userId, postId, vote, cb) {
             } else if (result.inserted !== 1) {
                 cb(new Error("Couldn't vote on post"));
             } else {
-                if (vote) {
-                    r.db(posts.dbName)
-                        .table('posts')
-                        .get(postId)
-                        .update({
-                            upVote: r.row("upVote").add(1).default(0)
-                        })
-                        .run(posts.connection, function (err, result) {
-                            if (err) {
-                                cb(err);
-                            } else if (result.replaced !== 1) {
-                                cb(new Error("Couldn't update post's upVote in db"));
-                            } else {
-                                cb(undefined, true);
-                            }
-                        });
-                } else {
-                    r.db(posts.dbName)
-                        .table('posts')
-                        .get(postId)
-                        .update({
-                            "downVote": r.row("downVote").add(1).default(0)
-                        })
-                        .run(posts.connection, function (err, result) {
-                            if (err) {
-                                cb(err);
-                            } else if (result.replaced !== 1) {
-                                cb(new Error("Couldn't update post's downVote in db"));
-                            } else {
-                                cb(undefined, true);
-                            }
-                        });
-                }
+                r.db(posts.dbName)
+                    .table('posts')
+                    .get(postId)
+                    .update({
+                        upVote: r.row("upVote").add(vote ? 1 : 0).default(0),
+                        downVote: r.row("downVote").add(vote ? 0 : 1).default(0),
+                        score: r.row("score").add(vote ? 1 : -1)
+                    })
+                    .run(posts.connection, function (err, result) {
+                        if (err) {
+                            cb(err);
+                        } else if (result.replaced !== 1) {
+                            cb(new Error("Couldn't update post's upVote in db"));
+                        } else {
+                            cb(undefined, true);
+                        }
+                    });
             }
         });
 }
