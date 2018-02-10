@@ -49,59 +49,90 @@ Posts.prototype.init = function (cb) {
     var posts = this;
     r.connect({ host: this.host, port: this.port }, function (err, conn) {
         posts.connection = conn;
-        posts.listen2TopPosts(posts.topPostsLimit, function (err, change, isRemoved) {
-            if (err) {
-                return;
-            }
-            change.postId = change.id;
-            posts.handlePostUpdate(change, isRemoved);
+        //first get current TopPosts
+        posts.currentTopPosts(function (err) {
+            //then, listen..
+            posts.listen2TopPosts(function (err, change, isRemoved) {
+                if (err) {
+                    return;
+                }
+                change.postId = change.id;
+                posts.handlePostUpdate(change, isRemoved);
+            });
         });
 
         cb && cb(err);
     })
 }
-
+/**
+ * Calc final post post weight.
+ * @param {object} post 
+ */
 function calcScore(post) {
     return post.upVote - post.downVote;
 }
 
+/**
+ * Handle updates in posts table. Store TopPosts list for future calls
+ * @param {object} postChange  - the new version of post
+ * @param {boolean} isRemoved - determines a removed post
+ */
 Posts.prototype.handlePostUpdate = function (postChange, isRemoved) {
     var len = this.topPosts.length;
     var pastHotline = Date.now() - this.hotPostsPeriod;
-    isRemoved = isRemoved || postChange.creation <= pastHotline;
+    //updates on old post will be treat will be ignored
+    isRemoved = isRemoved || postChange.creation < pastHotline;
     var found = false;
     var count = 0;
+    //new copy of posts list
     var newPosts = [];
     var index = 0;
+    var changeScore = calcScore(postChange);
     var item;
+    /**
+     * Loop description:
+     * For every update we will go over the local list and 
+     * A - remove old posts (before the hotPostsPeriod) 
+     * B - place the postChange object, if not removed
+     * C - place again all exist posts from original list 
+     */
     while (index < len && count < this.topPostsLimit) {
+        //ignore this item in local list (to allow re-order)
+        //(A) ignore too old posts in local list
+        if (this.topPosts[index].postId === postChange.postId
+            || this.topPosts[index].creation < pastHotline) {
+            index++;
+            continue;
+        }
+
         if (isRemoved) {
-            //ignore this item if removed
+            //(A) ignore this item if removed
             if (this.topPosts[index].postId !== postChange.postId) {
                 item = this.topPosts[index];
             }
             index++;
-        } else {
-            var changeScore = calcScore(postChange);
+        }
+        else {
             var score = calcScore(this.topPosts[index]);
-            //sort by score, DESC
-            //then for same score - sort DESC by creation
+            //check if current index good for this update
+            //sort by score (DESC) and then by creation (DESC)
             if (!found && (changeScore > score
+                //(B) put the change here, to keep the list ordered
                 || (changeScore == score && postChange.creation > this.topPosts[index].creation))) {
                 item = postChange;
                 found = true;
             } else {
+                //(C) - put back original posts.
                 item = this.topPosts[index];
                 index++;
             }
         }
-
         if (item) {
             newPosts.push(item);
             count++;
         }
     }
-    //if new change stil out - push it at the bottom
+    //(B) if new change still out - push it at the bottom
     if (!found && !isRemoved && count < this.topPostsLimit) {
         newPosts.push(postChange);
     }
@@ -133,6 +164,7 @@ Posts.prototype.createPost = function (userId, newPost, cb) {
         userId: userId,
         post: newPost,
         downVote: 0,
+        score: 0,
         upVote: 0,
         creation: Date.now()
     };
@@ -268,15 +300,16 @@ Posts.prototype.getTopPosts = function (cb) {
 
 /**
  * Gets list of last created "Top Posts", order by DESC
- * @param {Number?} total - Number of top Posts to return (Default 5)
  * @param {function} cb - callback function. function(err, change, isRemoved).
  * @returns {undefined}
  */
-Posts.prototype.listen2TopPosts = function (total, cb) {
+Posts.prototype.listen2TopPosts = function (cb) {
     var posts = this;
+    var pastHotline = Date.now() - this.hotPostsPeriod;
+
     r.db(this.dbName)
         .table('posts')
-        .changes()
+        .changes({ includeTypes: true })//, includeInitial: true })
         .run(posts.connection, function (err, cursor) {
             if (err) {
                 cb(err);
@@ -288,7 +321,33 @@ Posts.prototype.listen2TopPosts = function (total, cb) {
                     if (error || !posts.connection) {
                         return;
                     }
-                    cb(undefined, item.new_val, item.old_val && !item.new_val);
+                    cb(undefined, item.new_val, item.type === "remove");
+                });
+            }
+        });
+}
+
+/**
+ * Gets the current "Top Posts" (DESC by score, last)
+ * @param {function} cb - callback function. function(err, change, isRemoved).
+ * @returns {undefined}
+ */
+Posts.prototype.currentTopPosts = function (cb) {
+    var posts = this;
+    var pastHotline = Date.now() - this.hotPostsPeriod;
+
+    r.db(this.dbName)
+        .table('posts')
+        .orderBy({ index: r.desc('score') })
+        .filter(r.row("creation").gt(pastHotline))
+        .limit(this.topPostsLimit)
+        .run(posts.connection, function (err, cursor) {
+            if (err) {
+                cb(err);
+            } else {
+                cursor.toArray(function (err, result) {
+                    if (err) throw err;
+                    posts.topPosts = result;
                 });
             }
         });
