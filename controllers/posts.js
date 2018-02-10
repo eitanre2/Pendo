@@ -64,7 +64,7 @@ router.get('/top', function (req, res) {
 });
 
 //get a post
-router.get('/:postId', function (req, res) {
+router.post('/:postId', function (req, res) {
   var postId = req.params.postId;
   postsCtl.getPost(postId, function (err, post) {
     res.json({
@@ -76,7 +76,7 @@ router.get('/:postId', function (req, res) {
 });
 
 //upvote a post
-router.get('/:postId/up', function (req, res) {
+router.post('/:postId/up', function (req, res) {
   var userId = req.identity.userId;
   var postId = req.params.postId;
   postsCtl.votePost(userId, postId, true, function (err, result) {
@@ -87,7 +87,7 @@ router.get('/:postId/up', function (req, res) {
 });
 
 //downvote a post
-router.get('/:postId/down', function (req, res) {
+router.post('/:postId/down', function (req, res) {
   var userId = req.identity.userId;
   var postId = req.params.postId;
   postsCtl.votePost(userId, postId, false, function (err, result) {
