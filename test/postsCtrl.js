@@ -221,7 +221,7 @@ function DeclareTests(name, postsCtrlCreator) {
                     post.downVote = 0;
                     prepare.posts.push(post);
                     test.ctrl.createPost(test.userId, post, function (err, newPostId) {
-                        post.postId = newPostId;
+                        post.id = newPostId;
                         runDone();
                     });
                     //then - let 50 users to vote
@@ -231,7 +231,7 @@ function DeclareTests(name, postsCtrlCreator) {
                     var post = prepare.posts[userId % 10];
                     post.upVote += vote ? 1 : 0;
                     post.downVote += vote ? 0 : 1;
-                    test.ctrl.votePost(userId, post.postId, vote, function (err, result) {
+                    test.ctrl.votePost(userId, post.id, vote, function (err, result) {
                         runDone();
                     });
                     //finally, get top posts
@@ -267,7 +267,7 @@ function DeclareTests(name, postsCtrlCreator) {
                 var sortedPosts = test.prepare.posts.slice(0, Math.min(test.prepare.posts.length, test.ctrl.topPostsLimit));
                 assert.equal(sortedPosts.length, test.prepare.topPosts.length);
                 for (var i = 0; i < sortedPosts.length; i++) {
-                    assert.equal(sortedPosts[i].postId, test.prepare.topPosts[i].postId);
+                    assert.equal(sortedPosts[i].id, test.prepare.topPosts[i].id);
                     assert.equal(calcScore(sortedPosts[i]), calcScore(test.prepare.topPosts[i]));
                     assert.equal(sortedPosts[i].creation, test.prepare.topPosts[i].creation);
                 }

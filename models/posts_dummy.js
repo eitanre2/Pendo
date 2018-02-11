@@ -51,7 +51,7 @@ PostsDummy.prototype.clean = function () {
 */
 PostsDummy.prototype._getPost = function (postId) {
     for (var i = 0; i < this.posts.length; i++) {
-        if (this.posts[i].postId == postId) {
+        if (this.posts[i].id == postId) {
             return this.posts[i];
         }
     }
@@ -69,7 +69,7 @@ PostsDummy.prototype._getPost = function (postId) {
 PostsDummy.prototype.createPost = function (userId, newPost, cb) {
     var post = {
         userId: userId,
-        postId: (this.postID++).toString(),
+        id: (this.postID++).toString(),
         post: newPost,
         downVote: 0,
         upVote: 0,
@@ -79,7 +79,7 @@ PostsDummy.prototype.createPost = function (userId, newPost, cb) {
     newPost.creation = post.creation;
 
     this.posts.push(post);
-    cb(undefined, post.postId);
+    cb(undefined, post.id);
 }
 
 /**
