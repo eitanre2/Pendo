@@ -54,17 +54,21 @@ Posts.prototype.init = function (cb) {
         posts.connection = conn;
         //first get current TopPosts
         posts.currentTopPosts(function (err) {
+            if (err) {
+                cb && cb(err);
+                return;
+            }
             //then, listen..
             posts.listen2TopPosts(function (err, change, isRemoved) {
                 if (err) {
+                    cb && cb(err);
                     return;
                 }
                 change.postId = change.id;
                 posts.handlePostUpdate(change, isRemoved);
             });
+            cb && cb(err);
         });
-
-        cb && cb(err);
     })
 }
 /**
@@ -136,7 +140,7 @@ Posts.prototype.handlePostUpdate = function (postChange, isRemoved) {
         }
     }
     //(B) if new change still out - push it at the bottom
-    if (!found && !isRemoved && count < this.topPostsLimit) {
+    if (!found && !isRemoved && newPosts.length < this.topPostsLimit) {
         newPosts.push(postChange);
     }
 
@@ -333,8 +337,12 @@ Posts.prototype.currentTopPosts = function (cb) {
                 cb(err);
             } else {
                 cursor.toArray(function (err, result) {
-                    if (err) throw err;
-                    posts.topPosts = result;
+                    if (err) {
+                        cb(err);
+                    } else {
+                        posts.topPosts = result;
+                        cb();
+                    }
                 });
             }
         });

@@ -78,7 +78,7 @@ function DeclareTests(name, postsCtrlCreator) {
             };
 
             postsCtrl.init(function (err) {
-                assert.isTrue(!err);
+                assert.isTrue(!err, "Should success to init DAL object");
                 //start test only when ready with good connection
                 test.test();
             });
@@ -276,6 +276,8 @@ function DeclareTests(name, postsCtrlCreator) {
             };
 
             postsCtrl.init(function (err) {
+                //remove exist posts from previous insertion to make this test deterministic
+                postsCtrl.topPosts = [];
                 assert.isTrue(!err);
                 //start test only when ready with good connection
                 test.test();
